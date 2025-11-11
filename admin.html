@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RLKKK STORE — Painel Admin</title>
+<style>
+:root{--bg:#050505;--neon:#00ff6a;--muted:#2b2b2b}
+*{box-sizing:border-box;font-family:Consolas,monospace;color:var(--neon)}
+body{margin:0;background:linear-gradient(180deg,#030303,#070707);min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid rgba(0,255,106,0.04)}
+.title{font-size:16px}
+.container{padding:18px;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:linear-gradient(180deg,rgba(0,0,0,0.5),rgba(0,0,0,0.2));padding:12px;border-radius:10px;border:1px solid rgba(0,255,106,0.06)}
+.users-list{display:flex;flex-direction:column;gap:8px}
+.user{display:flex;justify-content:space-between;align-items:center;border-radius:6px;padding:8px;background:#070707;border:1px solid rgba(0,255,106,0.03)}
+.btn{background:transparent;border:1px solid var(--neon);padding:6px 10px;border-radius:6px;color:var(--neon);cursor:pointer}
+.form{display:flex;flex-direction:column;gap:8px}
+input[type="text"],input[type="number"],textarea{background:transparent;border:1px solid rgba(0,255,106,0.12);padding:8px;border-radius:6px;color:var(--neon);outline:none}
+textarea{min-height:60px}
+.preview{height:120px;background:#0a0a0a;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.preview img{max-width:100%;max-height:100%}
+.row{display:flex;gap:8px}
+.full{grid-column:1 / -1}
+.footer{margin-top:10px;text-align:right}
+@media(max-width:880px){.container{grid-template-columns:1fr} .full{grid-column:auto}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="title">PAINEL SECRETO — RLKKK STORE</div>
+  <div>
+    <button id="toStore" class="btn">VER LOJA</button>
+    <button id="logout" class="btn">SAIR</button>
+  </div>
+</header>
+
+<main class="container">
+  <section class="card">
+    <h3>GERENCIAR CONTAS</h3>
+    <div id="users" class="users-list"></div>
+  </section>
+
+  <section class="card">
+    <h3>CRIAR PRODUTO AO VIVO</h3>
+    <div class="form">
+      <input id="pname" type="text" placeholder="Nome do produto" />
+      <input id="pprice" type="number" placeholder="Preço (R$)" min="0" step="0.01" />
+      <textarea id="pdesc" placeholder="Descrição"></textarea>
+      <label style="font-size:12px;color:var(--muted)">Imagem do produto</label>
+      <input id="pimg" type="file" accept="image/*" />
+      <div class="preview" id="preview">Preview</div>
+      <input id="pbuy" type="text" placeholder='Texto/Link ao Comprar (ex: "Pague R$50 no PIX: chave@rlkkk.com" ou "https://t.me/usuario")' />
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="addProd" class="btn">ADICIONAR PRODUTO</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card full">
+    <h3>PRODUTOS ATUAIS (últimos)</h3>
+    <div id="prodList"></div>
+  </section>
+</main>
+
+<script>
+/* Storage helpers */
+const LS = {
+  usersKey:'rlkkk_users_v1',
+  productsKey:'rlkkk_products_v1',
+  sessionKey:'rlkkk_session_v1',
+  getUsers(){return JSON.parse(localStorage.getItem(this.usersKey)||'[]')},
+  saveUsers(v){localStorage.setItem(this.usersKey,JSON.stringify(v))},
+  getProducts(){return JSON.parse(localStorage.getItem(this.productsKey)||'[]')},
+  saveProducts(v){localStorage.setItem(this.productsKey,JSON.stringify(v))},
+  getSession(){return JSON.parse(localStorage.getItem(this.sessionKey)||'null')}
+};
+
+/* Guard: only admin */
+const session = LS.getSession();
+if(!session || !session.isAdmin){
+  alert('Acesso restrito: admin requerido');
+  location.href='index.html';
+}
+
+/* Elements */
+const usersEl = document.getElementById('users');
+const prodList = document.getElementById('prodList');
+const pname = document.getElementById('pname');
+const pprice = document.getElementById('pprice');
+const pdesc = document.getElementById('pdesc');
+const pimg = document.getElementById('pimg');
+const preview = document.getElementById('preview');
+const pbuy = document.getElementById('pbuy');
+const addProd = document.getElementById('addProd');
+
+function renderUsers(){
+  const users = LS.getUsers();
+  usersEl.innerHTML = '';
+  if(!users.length) { usersEl.innerHTML = '<div style="color:var(--muted)">Nenhum usuário registrado.</div>'; return; }
+  users.forEach(u=>{
+    const row = document.createElement('div'); row.className='user';
+    const info = document.createElement('div'); info.innerHTML = `<strong>${u.username}</strong><div style="font-size:11px;color:var(--muted)">Vendedor: ${u.isSeller? 'SIM':'NÃO'}</div>`;
+    const btn = document.createElement('button'); btn.className='btn'; btn.textContent = u.isSeller? 'Remover Vendedor':'Tornar Vendedor';
+    btn.addEventListener('click',()=>{
+      u.isSeller = !u.isSeller;
+      LS.saveUsers(users);
+      renderUsers();
+    });
+    row.append(info,btn);
+    usersEl.appendChild(row);
+  });
+}
+
+function renderProducts(){
+  const products = LS.getProducts().slice().reverse();
+  prodList.innerHTML='';
+  if(!products.length){ prodList.innerHTML = '<div style="color:var(--muted)">Nenhum produto.</div>'; return; }
+  products.forEach(p=>{
+    const el=document.createElement('div'); el.style.display='flex'; el.style.gap='10px'; el.style.alignItems='center'; el.style.padding='8px'; el.style.borderBottom='1px dashed rgba(0,255,106,0.03)';
+    const img=document.createElement('img'); img.src=p.img||'https://via.placeholder.com/80x60/0b0b0b/00ff6a'; img.style.width='80px'; img.style.height='60px'; img.style.objectFit='cover'; img.style.borderRadius='6px';
+    const info=document.createElement('div'); info.innerHTML = `<div style="font-weight:700">${p.name} — R$ ${Number(p.price).toFixed(2)}</div><div style="font-size:12px;color:var(--muted)">${p.desc}</div><div style="font-size:12px;color:var(--muted)">Compra: ${p.buyText||'—'}</div>`;
+    el.append(img,info);
+    prodList.appendChild(el);
+  });
+}
+
+/* Image preview */
+let imgData = '';
+pimg.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) { imgData=''; preview.innerHTML='Preview'; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ imgData = reader.result; preview.innerHTML = ''; const i=document.createElement('img'); i.src=imgData; preview.appendChild(i); };
+  reader.readAsDataURL(f);
+});
+
+/* Add product */
+addProd.addEventListener('click', ()=>{
+  const name = pname.value.trim();
+  const price = parseFloat(pprice.value);
+  const desc = pdesc.value.trim();
+  const buyText = pbuy.value.trim();
+  if(!name || isNaN(price)){ alert('Nome e preço são obrigatórios'); return; }
+  const products = LS.getProducts();
+  products.push({id:Date.now(),name,price:Math.max(0,price),desc,img:imgData,buyText});
+  LS.saveProducts(products);
+  // notify loja in same tab
+  window.dispatchEvent(new Event('productsUpdated'));
+  // Also trigger storage event for other tabs
+  localStorage.setItem(LS.productsKey, JSON.stringify(products));
+  // Clear form
+  pname.value='';pprice.value='';pdesc.value='';pimg.value='';preview.innerHTML='Preview';pbuy.value=''; imgData=''; 
+  renderProducts();
+});
+
+/* Logout & Nav */
+document.getElementById('logout').addEventListener('click',()=>{
+  localStorage.removeItem(LS.sessionKey);
+  location.href='index.html';
+});
+document.getElementById('toStore').addEventListener('click',()=>location.href='loja.html');
+
+/* Initial render */
+renderUsers();
+renderProducts();
+</script>
+</body>
+</html>
