@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RLKKK STORE — Loja</title>
+<style>
+:root{--bg:#050505;--card:#0b0b0b;--neon:#00ff6a;--muted:#2b2b2b}
+*{box-sizing:border-box;font-family:Consolas,monospace;color:var(--neon)}
+body{margin:0;background:linear-gradient(180deg,#040404,#070707);min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid rgba(0,255,106,0.04)}
+.title{font-size:16px}
+.controls{display:flex;gap:8px;align-items:center}
+.btn{background:transparent;border:1px solid var(--neon);padding:8px 12px;border-radius:6px;color:var(--neon);cursor:pointer}
+.container{padding:18px;max-width:1100px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:18px}
+.card{background:linear-gradient(180deg,rgba(0,0,0,0.5),rgba(0,0,0,0.2));border:1px solid rgba(0,255,106,0.06);padding:12px;border-radius:10px;transition:transform .18s, box-shadow .18s;display:flex;flex-direction:column;gap:8px}
+.card:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(0,255,106,0.04)}
+.thumb{height:140px;background:#0a0a0a;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.thumb img{max-width:100%;max-height:100%;display:block}
+.name{font-weight:700}
+.desc{font-size:12px;color:var(--muted);min-height:36px}
+.price{margin-top:auto;font-weight:700}
+.buy{margin-top:8px;background:var(--neon);color:#001;border:none;padding:8px;border-radius:6px;cursor:pointer}
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s}
+.modal-back.show{opacity:1;pointer-events:auto}
+.modal{background:#070707;padding:18px;border-radius:10px;max-width:520px;width:92%;border:1px solid rgba(0,255,106,0.08)}
+.modal h3{margin:0 0 8px 0}
+.modal p{color:var(--neon);font-size:14px}
+.close{background:transparent;border:1px solid var(--neon);padding:6px;border-radius:6px;color:var(--neon);cursor:pointer;margin-top:12px}
+.empty{color:var(--muted);text-align:center;padding:40px;border:1px dashed rgba(0,255,106,0.04);border-radius:8px}
+@media(max-width:520px){.thumb{height:110px}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="title">RLKKK STORE — Loja</div>
+  <div class="controls">
+    <button id="refreshBtn" class="btn">ATUALIZAR</button>
+    <button id="logoutBtn" class="btn">SAIR</button>
+  </div>
+</header>
+
+<main class="container">
+  <div id="productsWrap"></div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<div id="modalBack" class="modal-back" role="dialog" aria-hidden="true">
+  <div class="modal" id="modal">
+    <h3 id="modalTitle"></h3>
+    <p id="modalText"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <a id="modalLink" style="display:none" class="btn" target="_blank">Abrir Link</a>
+      <button class="close" id="closeModal">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LS = {
+  productsKey:'rlkkk_products_v1',
+  sessionKey:'rlkkk_session_v1',
+  getProducts(){return JSON.parse(localStorage.getItem(this.productsKey)||'[]')},
+  getSession(){return JSON.parse(localStorage.getItem(this.sessionKey)||'null')}
+};
+
+const grid = document.getElementById('grid');
+const productsWrap = document.getElementById('productsWrap');
+
+function render(){
+  const products = LS.getProducts();
+  grid.innerHTML = '';
+  if(!products.length){
+    productsWrap.innerHTML = '<div class="empty">Nenhum produto disponível.</div>';
+    return;
+  } else productsWrap.innerHTML = '';
+  products.slice().reverse().forEach(p=>{
+    const card=document.createElement('div');card.className='card';
+    const thumb=document.createElement('div');thumb.className='thumb';
+    const img=document.createElement('img'); img.src = p.img || 'https://via.placeholder.com/300x200/0b0b0b/00ff6a?text=RLKKK';
+    thumb.appendChild(img);
+    const name=document.createElement('div');name.className='name';name.textContent=p.name;
+    const desc=document.createElement('div');desc.className='desc';desc.textContent=p.desc;
+    const price=document.createElement('div');price.className='price';price.textContent='R$ '+Number(p.price).toFixed(2);
+    const buy=document.createElement('button');buy.className='buy';buy.textContent='COMPRAR';
+    buy.addEventListener('click',()=>openModal(p));
+    card.append(thumb,name,desc,price,buy);
+    grid.appendChild(card);
+  });
+}
+
+function openModal(p){
+  document.getElementById('modalTitle').textContent = p.name;
+  const textEl = document.getElementById('modalText');
+  const linkEl = document.getElementById('modalLink');
+  textEl.textContent = '';
+  linkEl.style.display='none';
+  if(p.buyText && (p.buyText.startsWith('http://') || p.buyText.startsWith('https://') || p.buyText.startsWith('tg:') )){
+    linkEl.href = p.buyText; linkEl.textContent = 'Abrir Link'; linkEl.style.display='inline-block';
+    textEl.textContent = 'Clique em "Abrir Link" para prosseguir.';
+  } else {
+    textEl.textContent = p.buyText || 'Sem instruções de compra definidas.';
+  }
+  document.getElementById('modalBack').classList.add('show');
+}
+
+document.getElementById('closeModal').addEventListener('click',()=>document.getElementById('modalBack').classList.remove('show'));
+document.getElementById('modalBack').addEventListener('click',(e)=>{ if(e.target.id==='modalBack') document.getElementById('modalBack').classList.remove('show') });
+
+document.getElementById('logoutBtn').addEventListener('click',()=>{
+  localStorage.removeItem(LS.sessionKey);
+  location.href='index.html';
+});
+document.getElementById('refreshBtn').addEventListener('click',render);
+
+/* Listen for admin updates in same tab */
+window.addEventListener('productsUpdated',render);
+/* Also listen to storage (other tabs) */
+window.addEventListener('storage', (e)=>{ if(e.key===LS.productsKey) render(); });
+
+/* initial render */
+render();
+
+/* Quick guard: if not logged, still allow browsing; but provide notice */
+const session = LS.getSession();
+if(!session) {
+  const note = document.createElement('div'); note.className='empty'; note.style.marginTop='12px';
+  note.textContent = 'Você está navegando como visitante. Faça login para comprar ou acessar o painel.';
+  productsWrap.prepend(note);
+}
+</script>
+</body>
+</html>
