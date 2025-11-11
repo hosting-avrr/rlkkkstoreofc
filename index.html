@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RLKKK STORE — Login</title>
+<style>
+:root{
+  --bg:#060606;--card:#0b0b0b;--neon:#00ff6a;--muted:#2b2b2b;
+}
+*{box-sizing:border-box;font-family:Consolas,monospace;color:var(--neon)}
+html,body{height:100%;margin:0;background:
+linear-gradient(180deg,#040404 0%, #070707 60%);display:flex;align-items:center;justify-content:center}
+.container{width:min(420px,94%);background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0.3));border:1px solid rgba(0,255,106,0.08);padding:28px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.8)}
+h1{margin:0 0 18px 0;font-size:20px;text-align:center}
+.input{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+label{font-size:12px;color:var(--muted)}
+input{background:transparent;border:1px solid rgba(0,255,106,0.12);padding:10px;border-radius:6px;color:var(--neon);outline:none}
+input:focus{box-shadow:0 0 12px rgba(0,255,106,0.06);border-color:var(--neon)}
+.actions{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:10px}
+button{background:transparent;border:1px solid var(--neon);padding:10px 14px;border-radius:6px;color:var(--neon);cursor:pointer}
+button.primary{background:var(--neon);color:#001; border-color:var(--neon);font-weight:700}
+.note{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
+.footer{margin-top:14px;font-size:11px;color:rgba(0,255,106,0.18);text-align:center}
+.phone-hint{display:none}
+@media(max-width:520px){.container{padding:18px}}
+</style>
+</head>
+<body>
+<div class="container" role="main">
+  <h1>RLKKK STORE — LOGIN</h1>
+  <div class="input">
+    <label for="user">Usuário</label>
+    <input id="user" autocomplete="username" />
+  </div>
+  <div class="input">
+    <label for="pass">Senha</label>
+    <input id="pass" type="password" autocomplete="current-password" />
+  </div>
+  <div class="actions">
+    <button id="loginBtn" class="primary">ENTRAR</button>
+    <button id="visitBtn">VISITAR LOJA</button>
+  </div>
+  <div class="note">Crie usuário livremente. Admin secreto embutido.</div>
+  <div class="footer">Tema: Dark Cyberpunk — RLKKK STORE</div>
+</div>
+
+<script>
+/* Helpers */
+const LS = {
+  usersKey: 'rlkkk_users_v1',
+  productsKey: 'rlkkk_products_v1',
+  sessionKey: 'rlkkk_session_v1',
+  getUsers(){return JSON.parse(localStorage.getItem(this.usersKey)||'[]')},
+  saveUsers(u){localStorage.setItem(this.usersKey,JSON.stringify(u))},
+  getProducts(){return JSON.parse(localStorage.getItem(this.productsKey)||'[]')},
+  saveProducts(p){localStorage.setItem(this.productsKey,JSON.stringify(p))},
+  setSession(s){localStorage.setItem(this.sessionKey,JSON.stringify(s))},
+  getSession(){return JSON.parse(localStorage.getItem(this.sessionKey)||'null')}
+};
+
+/* Ensure defaults */
+if(!localStorage.getItem(LS.productsKey)){
+  LS.saveProducts([
+    {id:1,name:'Pacote Inicial',price:50,desc:'Produto demo R$50',img:'',buyText:'Pague R$50 no PIX: chave@rlkkk.com'}
+  ]);
+}
+
+/* Events */
+document.getElementById('visitBtn').addEventListener('click',()=>location.href='loja.html');
+
+document.getElementById('loginBtn').addEventListener('click',()=>{
+  const user=document.getElementById('user').value.trim();
+  const pass=document.getElementById('pass').value;
+  if(!user || !pass){alert('Preencha usuário e senha');return;}
+  // secret admin check
+  if(user==='admin_rlkkk' && pass==='tranquilao2025'){
+    // create admin session and ensure admin user present
+    const users=LS.getUsers();
+    const exist = users.find(u=>u.username==='admin_rlkkk');
+    if(!exist){users.push({id:Date.now(),username:'admin_rlkkk',isSeller:false,loggedAt:new Date().toISOString()});LS.saveUsers(users)}
+    LS.setSession({username:'admin_rlkkk',isAdmin:true,loggedAt:new Date().toISOString()});
+    location.href='admin.html';
+    return;
+  }
+  // normal login: simulate creating user and set session
+  const users=LS.getUsers();
+  let u = users.find(x=>x.username===user);
+  if(!u){ u = {id:Date.now(),username:user,isSeller:false,loggedAt:new Date().toISOString()}; users.push(u); LS.saveUsers(users); }
+  else { u.loggedAt=new Date().toISOString(); LS.saveUsers(users); }
+  LS.setSession({username:user,isAdmin:false,loggedAt:new Date().toISOString()});
+  location.href='loja.html';
+});
+</script>
+</body>
+</html>
